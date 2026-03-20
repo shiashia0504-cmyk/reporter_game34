@@ -1015,43 +1015,66 @@ let playerName = '';
 function confirmName() {
   const v = document.getElementById('name-inp').value.trim();
   const err = document.getElementById('name-err');
+
   if (!v) {
-    err.textContent = '이름을 입력해야 수사를 시작할 수 있어요!';
+    showNameErr('이름을 입력해야 수사를 시작할 수 있어요!', false);
     document.getElementById('name-inp').focus();
     return;
   }
-  // 이미 랭킹에 있는 이름이면 경고 후 대기
-  const lb = SUPA_READY ? [] : loadLB();
-  const dup = lb.find(r => r.name === v);
+
+  // localStorage에서 직접 찾기 (SUPA_READY 조건 제거)
+  let dup = null;
+  try {
+    const raw = localStorage.getItem(LB_KEY);
+    if (raw) {
+      const lb = JSON.parse(raw);
+      dup = Array.isArray(lb) ? lb.find(r => r.name === v) : null;
+    }
+  } catch(e) {}
+
   if (dup) {
-    // name-err 확실하게 표시
-    err.style.display = 'block';
-    err.style.color = 'var(--am-t)';
-    err.style.background = 'var(--am-bg)';
-    err.style.border = '0.5px solid var(--am-b)';
-    err.style.borderRadius = 'var(--r)';
-    err.style.padding = '8px 12px';
-    err.style.lineHeight = '1.5';
-    err.innerHTML =
-      `⚠️ <b>"${v}"</b>의 기록이 이미 있어요! (${dup.score}pt · ${dup.rank}등급)<br>` +
-      `<span style="font-size:11px">다른 이름을 쓰거나, 버튼을 눌러 그대로 시작하세요.</span>`;
-    // 시작 버튼을 "그래도 시작" 모드로 전환
+    showNameErr(`⚠️ "${v}"의 기록이 이미 있어요! (${dup.score}pt · ${dup.rank}등급)
+다른 이름을 쓰거나, 아래 버튼으로 그대로 시작하세요.`, true);
     const btn = document.querySelector('#s-start .start-btn');
     btn.textContent = '그래도 시작하기 →';
     btn.onclick = () => { playerName = v; startGame(); };
     return;
   }
-  err.style = '';
-  err.textContent = '';
+
+  clearNameErr();
   playerName = v;
   startGame();
+}
+
+function showNameErr(msg, isWarn) {
+  const err = document.getElementById('name-err');
+  if (!err) return;
+  err.style.cssText = [
+    'display:block',
+    'padding:9px 12px',
+    'border-radius:8px',
+    'line-height:1.55',
+    'font-size:13px',
+    'white-space:pre-line',
+    'margin-bottom:.75rem',
+    isWarn
+      ? 'background:#faeeda;color:#854f0b;border:0.5px solid #ba7517'
+      : 'background:#fcebeb;color:#a32d2d;border:0.5px solid #e24b4a',
+  ].join(';');
+  err.textContent = msg;
+}
+
+function clearNameErr() {
+  const err = document.getElementById('name-err');
+  if (!err) return;
+  err.style.cssText = '';
+  err.textContent = '';
 }
 
 function resetStartBtn() {
   const btn = document.querySelector('#s-start .start-btn');
   if (btn) { btn.textContent = '수사 시작! 🔍'; btn.onclick = confirmName; }
-  const err = document.getElementById('name-err');
-  if (err) { err.textContent = ''; err.removeAttribute('style'); }
+  clearNameErr();
 }
 
 document.getElementById('name-inp').addEventListener('keydown', e => {
@@ -1194,8 +1217,8 @@ function showMyRankBox(myIdx, total, isGlobal) {
 
 // ── Supabase 전체 반 랭킹 설정 ──────────────────────────
 // ★ 아래 두 줄에 본인 Supabase 값을 입력하세요 ★
-const SUPA_URL = 'https://tanvmiclqtkkrrrzqlrp.supabase.co';   // 예) https://abcdefgh.supabase.co
-const SUPA_KEY = 'sb_publishable_02yHy_VMMnc5DotZkj0ncA_UmK2YjjG';
+const SUPA_URL = 'YOUR_SUPABASE_URL';   // 예) https://abcdefgh.supabase.co
+const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const SUPA_READY = SUPA_URL !== 'YOUR_SUPABASE_URL';
 const SUPA_HDR = () => ({
