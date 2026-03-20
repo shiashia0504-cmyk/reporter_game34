@@ -231,42 +231,54 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     <div class="hdr-sub">특별수사대 — 책도둑을 잡아라!</div>
   </div>
 
-  <!-- 이름 입력 -->
-  <div class="scr" id="s-name">
-    <div class="name-wrap">
-      <div style="font-size:36px;margin-bottom:.5rem">🕵️</div>
-      <div class="name-ttl">기자 이름을 알려주세요!</div>
-      <p class="name-desc">랭킹에 올릴 이름을 입력해요.<br>나중에 내 기록을 확인할 수 있어요.</p>
-      <input class="name-inp" id="name-inp" placeholder="예) 김소요" maxlength="8"/>
-      <div class="name-err" id="name-err"></div>
-      <button class="start-btn" onclick="confirmName()">다음 →</button>
-    </div>
-  </div>
-
-  <!-- 시작 -->
+  <!-- 시작 (랭킹 + 이름입력 + 난이도 통합) -->
   <div class="scr on" id="s-start">
-    <div class="start-wrap">
-      <div class="start-dog" id="start-dog"></div>
-      <div class="start-ttl">📚 수상한 책도둑 출현!</div>
-      <p class="start-desc">
-        책 속에서 뛰쳐나온 미스터리한 책도둑이<br>도서관을 어지럽히고 있어요!<br><br>
-        퀴즈를 풀어 단서를 모으고<br><b>책도둑의 정체</b>를 밝혀봐요!<br>
-        <span style="font-size:11px;color:var(--text3)">총 10문제 · OX / 빈칸 / 카드 / 기자미션</span>
-      </p>
-      <p style="font-size:12px;font-weight:600;margin-bottom:9px">난이도 선택</p>
-      <div class="diff-row">
-        <button class="diff-btn selected" id="diff-easy" onclick="setDiff('easy')">
-          쉬움 ❤️×5<span class="diff-small">타이머 없음</span>
-        </button>
-        <button class="diff-btn" id="diff-normal" onclick="setDiff('normal')">
-          보통 ❤️×3<span class="diff-small">30초 타이머</span>
-        </button>
-        <button class="diff-btn" id="diff-hard" onclick="setDiff('hard')">
-          어려움 ❤️×1<span class="diff-small">15초 타이머</span>
-        </button>
+
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.1rem">
+      <div class="start-dog" id="start-dog" style="width:64px;height:64px;min-width:64px;border-radius:var(--r)"></div>
+      <div style="text-align:left">
+        <div class="start-ttl" style="font-size:16px;margin-bottom:3px">📚 수상한 책도둑 출현!</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.5">
+          퀴즈를 풀어 단서를 모으고 책도둑의 정체를 밝혀봐요!<br>
+          <span style="color:var(--text3)">총 10문제 · OX / 빈칸 / 카드 / 기자미션</span>
+        </p>
       </div>
-      <button class="start-btn" onclick="goToName()">다음 →</button>
     </div>
+
+    <!-- 현재 랭킹 미리보기 -->
+    <div class="lb-wrap" style="margin-bottom:1.1rem">
+      <div class="lb-title"><span id="start-lb-title">🏆 현재 랭킹</span>
+        <button class="lb-clear" onclick="clearLeaderboardFromStart()">기록 초기화</button>
+      </div>
+      <div class="lb-list" id="start-lb-list"></div>
+    </div>
+
+    <!-- 이름 입력 -->
+    <p style="font-size:12px;font-weight:600;margin-bottom:7px">내 이름 입력</p>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input class="name-inp" id="name-inp"
+        placeholder="예) 김소요  (최대 8자)"
+        maxlength="8"
+        style="margin:0;text-align:left;flex:1;max-width:none"/>
+    </div>
+    <div class="name-err" id="name-err" style="margin-bottom:.75rem"></div>
+
+    <!-- 난이도 -->
+    <p style="font-size:12px;font-weight:600;margin-bottom:7px">난이도 선택</p>
+    <div class="diff-row" style="margin-bottom:1.1rem;justify-content:flex-start">
+      <button class="diff-btn selected" id="diff-easy" onclick="setDiff('easy')">
+        쉬움 ❤️×5<span class="diff-small">타이머 없음</span>
+      </button>
+      <button class="diff-btn" id="diff-normal" onclick="setDiff('normal')">
+        보통 ❤️×3<span class="diff-small">30초 타이머</span>
+      </button>
+      <button class="diff-btn" id="diff-hard" onclick="setDiff('hard')">
+        어려움 ❤️×1<span class="diff-small">15초 타이머</span>
+      </button>
+    </div>
+
+    <button class="start-btn" style="width:100%" onclick="confirmName()">수사 시작! 🔍</button>
   </div>
 
   <!-- 게임 -->
@@ -592,15 +604,9 @@ function startGame() {
 
 function restartGame() {
   clearInterval(timerInterval);
+  playerName = ''; // 이름 초기화 → 다시 입력받기
   showScreen('s-start');
-}
-
-/* 시작 → 이름 입력 */
-function goToName() {
-  // 이미 이름이 있으면 바로 게임 시작
-  if (playerName) { startGame(); return; }
-  showScreen('s-name');
-  setTimeout(() => document.getElementById('name-inp').focus(), 100);
+  renderStartLB();
 }
 
 function showScreen(id) {
@@ -1004,11 +1010,20 @@ let playerName = '';
 /* ── 이름 화면 ── */
 function confirmName() {
   const v = document.getElementById('name-inp').value.trim();
+  const err = document.getElementById('name-err');
   if (!v) {
-    document.getElementById('name-err').textContent = '이름을 입력해야 수사를 시작할 수 있어요!';
+    err.textContent = '이름을 입력해야 수사를 시작할 수 있어요!';
+    document.getElementById('name-inp').focus();
     return;
   }
-  document.getElementById('name-err').textContent = '';
+  // 이미 랭킹에 있는 이름이면 경고 (같은 이름 덮어쓰기는 OK지만 알려주기)
+  const lb = SUPA_READY ? [] : loadLB(); // Supabase면 체크 생략
+  const dup = lb.find(r => r.name === v);
+  if (dup) {
+    err.textContent = `"${v}"의 기록이 이미 있어요. 더 높은 점수를 내면 갱신돼요!`;
+  } else {
+    err.textContent = '';
+  }
   playerName = v;
   startGame();
 }
@@ -1016,6 +1031,34 @@ function confirmName() {
 document.getElementById('name-inp').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmName();
 });
+
+// 시작 화면 랭킹 렌더
+async function renderStartLB() {
+  const titleEl = document.getElementById('start-lb-title');
+  const listEl  = document.getElementById('start-lb-list');
+  if (!listEl) return;
+
+  if (SUPA_READY) {
+    if (titleEl) titleEl.textContent = '🏆 전체 반 랭킹';
+    listEl.innerHTML = '<div class="lb-empty" style="color:var(--text3)">불러오는 중...</div>';
+    const supaLB = await loadSupaLB();
+    if (supaLB && supaLB.length) { renderLBInto(listEl, supaLB, -1); return; }
+  } else {
+    if (titleEl) titleEl.textContent = '🏆 현재 랭킹 (이 기기)';
+  }
+  const lb = loadLB();
+  if (!lb.length) {
+    listEl.innerHTML = '<div class="lb-empty">아직 기록이 없어요. 첫 번째 기자가 되어봐요!</div>';
+  } else {
+    renderLBInto(listEl, lb, -1);
+  }
+}
+
+function clearLeaderboardFromStart() {
+  if (!confirm('기록을 모두 지울까요?')) return;
+  localStorage.removeItem(LB_KEY);
+  renderStartLB();
+}
 
 /* ── 랭킹 저장/불러오기 ── */
 function loadLB() {
@@ -1029,8 +1072,15 @@ function saveLB(lb) {
 
 function saveScore(name, score, correct, diffKey, rank) {
   const lb = loadLB();
-  lb.push({ name, score, correct, diff: diffKey, rank, at: Date.now() });
-  // 점수 내림차순 정렬 후 MAX_LB 유지
+  const existing = lb.findIndex(r => r.name === name);
+  if (existing >= 0) {
+    if (score > lb[existing].score) {
+      lb[existing] = { name, score, correct, diff: diffKey, rank, at: Date.now() };
+    }
+    // 낮은 점수면 기존 유지
+  } else {
+    lb.push({ name, score, correct, diff: diffKey, rank, at: Date.now() });
+  }
   lb.sort((a, b) => b.score - a.score || b.correct - a.correct);
   if (lb.length > MAX_LB) lb.length = MAX_LB;
   saveLB(lb);
@@ -1042,20 +1092,17 @@ function clearLeaderboard() {
   localStorage.removeItem(LB_KEY);
   renderLB([], -1);
   document.getElementById('my-rank-box').style.display = 'none';
+  renderStartLB(); // 시작 화면 랭킹도 갱신
 }
 
-function renderLB(lb, myIdx) {
-  const list = document.getElementById('lb-list');
-  const title = document.querySelector('.lb-title');
-  if (title) title.firstChild.textContent = SUPA_READY ? '🏆 전체 반 랭킹' : '🏆 이 기기 랭킹';
-
+function renderLBInto(listEl, lb, myIdx) {
   if (!lb || !lb.length) {
-    list.innerHTML = '<div class="lb-empty">아직 기록이 없어요!</div>';
+    listEl.innerHTML = '<div class="lb-empty">아직 기록이 없어요!</div>';
     return;
   }
   const diffLabel = { easy:'쉬움', normal:'보통', hard:'어려움' };
   const medals = ['🥇','🥈','🥉'];
-  list.innerHTML = lb.slice(0, 15).map((r, i) => {
+  listEl.innerHTML = lb.slice(0, 15).map((r, i) => {
     const isMe = i === myIdx;
     const medal = medals[i] || (i + 1) + '위';
     const name = r.name || '???';
@@ -1069,6 +1116,13 @@ function renderLB(lb, myIdx) {
       <span class="lb-diff">${rank}등급 · ${diffTxt}</span>
     </div>`;
   }).join('');
+}
+
+function renderLB(lb, myIdx) {
+  const list = document.getElementById('lb-list');
+  const title = document.querySelector('.lb-title span');
+  if (title) title.textContent = SUPA_READY ? '🏆 전체 반 랭킹' : '🏆 이 기기 랭킹';
+  renderLBInto(list, lb, myIdx);
 }
 
 /* ── 결과에 랭킹 연동 ── */
@@ -1111,8 +1165,8 @@ function showMyRankBox(myIdx, total, isGlobal) {
 
 // ── Supabase 전체 반 랭킹 설정 ──────────────────────────
 // ★ 아래 두 줄에 본인 Supabase 값을 입력하세요 ★
-const SUPA_URL = 'https://tanvmiclqtkkrrrzqlrp.supabase.co';   // 예) https://abcdefgh.supabase.co
-const SUPA_KEY = 'sb_publishable_02yHy_VMMnc5DotZkj0ncA_UmK2YjjG';
+const SUPA_URL = 'YOUR_SUPABASE_URL';   // 예) https://abcdefgh.supabase.co
+const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const SUPA_READY = SUPA_URL !== 'YOUR_SUPABASE_URL';
 const SUPA_HDR = () => ({
@@ -1124,11 +1178,31 @@ const SUPA_HDR = () => ({
 async function saveScoreToSupabase(name, score, correct, diffKey, rank) {
   if (!SUPA_READY) return;
   try {
-    await fetch(`${SUPA_URL}/rest/v1/leaderboard`, {
-      method: 'POST',
-      headers: { ...SUPA_HDR(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ name, score, correct, diff: diffKey, rank }),
-    });
+    // 기존 기록 조회
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/leaderboard?name=eq.${encodeURIComponent(name)}&select=id,score`,
+      { headers: SUPA_HDR() }
+    );
+    const existing = res.ok ? await res.json() : [];
+
+    if (existing.length > 0) {
+      // 더 높은 점수일 때만 업데이트
+      if (score > existing[0].score) {
+        await fetch(`${SUPA_URL}/rest/v1/leaderboard?id=eq.${existing[0].id}`, {
+          method: 'PATCH',
+          headers: { ...SUPA_HDR(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ score, correct, diff: diffKey, rank }),
+        });
+      }
+      // 낮은 점수면 아무것도 안 함
+    } else {
+      // 새 기록 삽입
+      await fetch(`${SUPA_URL}/rest/v1/leaderboard`, {
+        method: 'POST',
+        headers: { ...SUPA_HDR(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ name, score, correct, diff: diffKey, rank }),
+      });
+    }
   } catch(e) { console.warn('Supabase 저장 실패:', e); }
 }
 
@@ -1151,6 +1225,7 @@ async function deleteSupaScore(id) {
 }
 
 init();
+renderStartLB();
 </script>
 </body>
 </html>
