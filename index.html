@@ -1022,15 +1022,24 @@ function confirmName() {
   const lb = SUPA_READY ? [] : loadLB();
   const dup = lb.find(r => r.name === v);
   if (dup) {
+    // name-err 확실하게 표시
+    err.style.display = 'block';
+    err.style.color = 'var(--am-t)';
+    err.style.background = 'var(--am-bg)';
+    err.style.border = '0.5px solid var(--am-b)';
+    err.style.borderRadius = 'var(--r)';
+    err.style.padding = '8px 12px';
+    err.style.lineHeight = '1.5';
     err.innerHTML =
-      `"${v}"의 기록이 이미 있어요! (${dup.score}pt · ${dup.rank}등급)<br>` +
-      `<span style="font-size:11px;color:var(--text3)">다른 이름을 쓰거나, 아래 버튼으로 그대로 시작할 수 있어요.</span>`;
+      `⚠️ <b>"${v}"</b>의 기록이 이미 있어요! (${dup.score}pt · ${dup.rank}등급)<br>` +
+      `<span style="font-size:11px">다른 이름을 쓰거나, 버튼을 눌러 그대로 시작하세요.</span>`;
     // 시작 버튼을 "그래도 시작" 모드로 전환
     const btn = document.querySelector('#s-start .start-btn');
     btn.textContent = '그래도 시작하기 →';
     btn.onclick = () => { playerName = v; startGame(); };
-    return; // 바로 시작하지 않음
+    return;
   }
+  err.style = '';
   err.textContent = '';
   playerName = v;
   startGame();
@@ -1040,7 +1049,7 @@ function resetStartBtn() {
   const btn = document.querySelector('#s-start .start-btn');
   if (btn) { btn.textContent = '수사 시작! 🔍'; btn.onclick = confirmName; }
   const err = document.getElementById('name-err');
-  if (err) err.textContent = '';
+  if (err) { err.textContent = ''; err.removeAttribute('style'); }
 }
 
 document.getElementById('name-inp').addEventListener('keydown', e => {
@@ -1183,8 +1192,8 @@ function showMyRankBox(myIdx, total, isGlobal) {
 
 // ── Supabase 전체 반 랭킹 설정 ──────────────────────────
 // ★ 아래 두 줄에 본인 Supabase 값을 입력하세요 ★
-const SUPA_URL = 'https://tanvmiclqtkkrrrzqlrp.supabase.co';   // 예) https://abcdefgh.supabase.co
-const SUPA_KEY = 'sb_publishable_02yHy_VMMnc5DotZkj0ncA_UmK2YjjG';
+const SUPA_URL = 'YOUR_SUPABASE_URL';   // 예) https://abcdefgh.supabase.co
+const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const SUPA_READY = SUPA_URL !== 'YOUR_SUPABASE_URL';
 const SUPA_HDR = () => ({
