@@ -1079,24 +1079,27 @@ document.getElementById('name-inp').addEventListener('input', () => {
 });
 
 // 시작 화면 랭킹 렌더
-async function renderStartLB() {
+function renderStartLB() {
   const titleEl = document.getElementById('start-lb-title');
   const listEl  = document.getElementById('start-lb-list');
   if (!listEl) return;
 
+  // 로컬 기록 즉시 표시 (블로킹 없음)
+  const localLB = loadLB();
   if (FB_READY) {
     if (titleEl) titleEl.textContent = '🏆 전체 반 랭킹';
-    listEl.innerHTML = '<div class="lb-empty" style="color:var(--text3)">불러오는 중...</div>';
-    const supaLB = await loadSupaLB();
-    if (supaLB && supaLB.length) { renderLBInto(listEl, supaLB, -1); return; }
+    if (localLB.length) renderLBInto(listEl, localLB, -1);
+    else listEl.innerHTML = '<div class="lb-empty" style="color:var(--text3)">　</div>';
+    // Firebase는 백그라운드 — 응답 오면 조용히 교체
+    fbLoadLB().then(fbLB => {
+      if (!listEl.isConnected) return;
+      if (fbLB && fbLB.length) renderLBInto(listEl, fbLB, -1);
+      else if (!localLB.length) listEl.innerHTML = '<div class="lb-empty">아직 기록이 없어요. 첫 번째 기자가 되어봐요!</div>';
+    });
   } else {
     if (titleEl) titleEl.textContent = '🏆 현재 랭킹 (이 기기)';
-  }
-  const lb = loadLB();
-  if (!lb.length) {
-    listEl.innerHTML = '<div class="lb-empty">아직 기록이 없어요. 첫 번째 기자가 되어봐요!</div>';
-  } else {
-    renderLBInto(listEl, lb, -1);
+    if (!localLB.length) listEl.innerHTML = '<div class="lb-empty">아직 기록이 없어요. 첫 번째 기자가 되어봐요!</div>';
+    else renderLBInto(listEl, localLB, -1);
   }
 }
 
@@ -1210,9 +1213,9 @@ function showMyRankBox(myIdx, total, isGlobal) {
 // ★ 아래 한 줄에 본인 Firebase DB URL을 입력하세요 ★
 // Firebase 콘솔 → Realtime Database → 데이터 탭의 URL
 // 예) https://my-project-default-rtdb.asia-southeast1.firebasedatabase.app
-const FB_URL = 'https://reportergame34-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FB_URL = 'YOUR_FIREBASE_DATABASE_URL';
 
-const FB_READY = FB_URL !== 'https://reportergame34-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FB_READY = FB_URL !== 'YOUR_FIREBASE_DATABASE_URL';
 
 // 이름을 key로 써서 같은 이름은 자동으로 덮어씌워짐 (중복 불가)
 function fbKey(name) {
@@ -1243,7 +1246,7 @@ async function fbLoadLB() {
   if (!FB_READY) return null;
   try {
     // orderBy 쿼리 없이 단순 전체 fetch → JS에서 정렬 (인덱스 불필요, 빠름)
-    const res = await fetch(`${fbPath()}.json`, { cache: 'no-store' });
+    const res = await fetch(`${fbPath()}.json`);
     if (!res.ok) return null;
     const data = await res.json();
     if (!data) return [];
