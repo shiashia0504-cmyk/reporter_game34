@@ -418,20 +418,471 @@ body.admin .admin-only{display:block!important}
 // ║      ★ 문제 & 설정 — 특보가 바뀔 때 여기만 수정하세요! ★   ║
 // ╚══════════════════════════════════════════════════════════╝
 
+// ★ 특보 호수 — 새 호수 받으면 이 숫자만 바꾸세요!
+const ISSUE_NUM = 3;
+
+const QUESTIONS = [
+  // ── OX 퀴즈 (1~3번)
+  { type:"ox", q:"2014년 4월 16일, 제주로 수학여행을 떠난 학생들을 태운 배가 바다 위에서 기울었어요.", ans:true, explain:"맞아요! 2014년 4월 16일 아침, 세월호가 바다 위에서 기울기 시작했어요." },
+  { type:"ox", q:"세월호 사고에서 304명의 사람들이 무사히 돌아올 수 있었어요.", ans:false, explain:"틀려요. 304명의 사람들이 돌아오지 못했어요. 우리와 나이가 비슷한 학생들도 많았어요." },
+  { type:"ox", q:"매년 4월 16일은 국민안전의 날이에요.", ans:true, explain:"맞아요! 우리가 그날을 기억하고, 다시는 이런 일이 일어나지 않길 바라는 마음 때문이에요." },
+  // ── 빈칸 채우기 (4~6번)
+  { type:"blank", q:"세월호 사고는 2014년 ( )월 16일에 일어났어요.", answers:["4","사"], hint:"봄, 벚꽃이 피는 달이에요.", explain:"4월 16일이에요. 매년 이날을 국민안전의 날로 기억해요." },
+  { type:"blank", q:"노란 리본은 세월호를 ( )하는 마음을 담은 약속이에요.", answers:["기억","추모"], hint:"잊지 않겠다는 뜻이에요.", explain:"노란 리본은 기억하겠다는 약속이에요. '기억할게요, 안전한 세상을 만들게요.'" },
+  { type:"blank", q:"도서관에서 안전 이야기가 담긴 책은 ( )번대 책장에 있어요.", answers:["300","삼백"], hint:"특종 취재 미션에 나왔어요!", explain:"300번대 책장에 우리 모두를 지켜주는 안전 이야기가 살고 있어요!" },
+  // ── 카드 짝 맞추기 (7번)
+  { type:"card", pairs:[["4월 16일","국민안전의 날"],["304명","돌아오지 못한 사람들"],["노란 리본","기억의 약속"],["300번대","도서관 안전 책 위치"]] },
+  // ── 리터러시 미션 (8번)
+  { type:"mission", story:"리터러시 미션 1 — 문장을 읽고 생각해봐요!\n\n특보에 이런 문장이 있어요:\n\n\"노란 리본은 그 마음을 담은 약속이에요.\"\n\n여기서 '그 마음'은 어떤 마음일까요?", choices:["빨리 여행을 가고 싶은 마음","다시는 이런 일이 일어나지 않길 바라는 마음","노란색 물건을 모으고 싶은 마음"], correct:1, explain:"맞아요! 특보에서 '우리가 그날을 기억하는 건, 다시는 이런 일이 일어나지 않길 바라는 마음 때문'이라고 했어요." },
+  // ── 리터러시 미션 (9번)
+  { type:"mission", story:"리터러시 미션 2 — 명언을 읽고 생각해봐요!\n\n소요도서관 특보 3호에 실린 문장이에요:\n\n\"태어나려는 자는 하나의 세계를 깨뜨려야 한다.\"\n— 헤르만 헤세\n\n이 문장은 무슨 뜻에 가까울까요?", choices:["달걀을 깨서 요리를 해야 한다는 뜻이에요","새롭게 자라려면 익숙한 것을 벗어나는 용기가 필요하다는 뜻이에요","세계 여행을 많이 해야 한다는 뜻이에요"], correct:1, explain:"잘 읽었어요! 알을 깨고 나오는 새처럼, 새로운 나로 자라려면 지금의 편안함을 벗어나는 용기가 필요하다는 뜻이에요." },
+  // ── 기자 미션 (10번)
+  { type:"mission", story:"기자 미션\n\n도서관 알림판에 특종 취재 미션이 붙어 있어요!\n\n\"우리 모두를 지켜주는 안전 이야기가 도서관 어느 코너에 살고 있을까?\"", choices:["100번대 — 철학 코너","900번대 — 역사 코너","300번대 — 사회 코너"], correct:2, explain:"맞아요! 300번대 책장에 안전 이야기가 담긴 책들이 있어요. 한 권 빌려봐요!" },
+];
+
+const SUSPECT = {
+  name: "수상한 책도둑",
+  desc: "책 속에서 탈출해 도서관을 어지럽히는 미스터리한 존재. 정체를 밝혀라!",
+  reveal: "정체는 바로… 역사책 속에 살던 꼬마 역사가였어요! 역사를 직접 알려주고 싶어서 뛰쳐나온 거랍니다. 앞으로는 책 안에서 기다릴게요! 📚",
+};
+
+const THIEF_SVG = `<svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+  <rect width="110" height="110" fill="#faeeda"/>
+  <ellipse cx="55" cy="97" rx="40" ry="20" fill="#2a1a0a"/>
+  <rect x="18" y="28" width="74" height="58" rx="6" fill="#c8873a"/>
+  <rect x="22" y="32" width="66" height="50" rx="4" fill="#fdf6ec"/>
+  <line x1="30" y1="44" x2="80" y2="44" stroke="#ddd" stroke-width="1.5"/>
+  <line x1="30" y1="51" x2="80" y2="51" stroke="#ddd" stroke-width="1.5"/>
+  <line x1="30" y1="58" x2="72" y2="58" stroke="#ddd" stroke-width="1.5"/>
+  <line x1="30" y1="65" x2="76" y2="65" stroke="#ddd" stroke-width="1.5"/>
+  <rect x="18" y="28" width="9" height="58" rx="3" fill="#a06830"/>
+  <circle cx="42" cy="54" r="8" fill="white"/>
+  <circle cx="68" cy="54" r="8" fill="white"/>
+  <circle cx="43.5" cy="55" r="5" fill="#1a1a1a"/>
+  <circle cx="69.5" cy="55" r="5" fill="#1a1a1a"/>
+  <circle cx="45" cy="53.5" r="1.8" fill="white"/>
+  <circle cx="71" cy="53.5" r="1.8" fill="white"/>
+  <path d="M35 45 Q42 42 49 45" fill="none" stroke="#2a1a0a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M61 45 Q68 42 75 45" fill="none" stroke="#2a1a0a" stroke-width="2.5" stroke-linecap="round"/>
+  <rect x="28" y="14" width="54" height="18" rx="4" fill="#2a1a0a"/>
+  <rect x="20" y="28" width="70" height="6" rx="2" fill="#1a0e04"/>
+  <rect x="28" y="19" width="54" height="4" rx="2" fill="#c8873a"/>
+  <text x="82" y="25" font-size="16" fill="#e24b4a" font-weight="bold">!</text>
+</svg>`;
+
+const TOTAL = 10;
+const CELLS = 16;
+const MZ_ORDER = [0,15,3,12,7,8,1,14,4,11,2,13,5,10,6,9];
+const DIFF_CFG = {
+  easy:   { lives:5, timerSec:0,  ptBase:10, ptTimeBonus:0 },
+  normal: { lives:3, timerSec:30, ptBase:10, ptTimeBonus:1 },
+  hard:   { lives:1, timerSec:15, ptBase:10, ptTimeBonus:2 },
+};
+
+let diff = 'easy';
+let lives, maxLives, pts, combo, maxCombo, bonusPts;
+let qIdx, timerSec, timerRemain, timerInterval;
+let cardSel, cardMatched, cardWrong, cardTotal, cardDone;
+let correctCount;
+
+function setDiff(d) {
+  diff = d;
+  ['easy','normal','hard'].forEach(k =>
+    document.getElementById('diff-'+k).classList.toggle('selected', k===d));
+}
+
+function init() {
+  document.getElementById('start-dog').innerHTML = THIEF_SVG;
+  document.getElementById('mz-svg').innerHTML = THIEF_SVG;
+  document.getElementById('p-name').textContent = SUSPECT.name;
+  document.getElementById('p-desc').textContent = SUSPECT.desc;
+}
+
+function buildMosaic() {
+  const g = document.getElementById('mz-grid');
+  g.innerHTML = '';
+  for (let i = 0; i < CELLS; i++) {
+    const d = document.createElement('div');
+    d.className = 'mz'; d.id = 'mz'+i;
+    g.appendChild(d);
+  }
+}
+
+function revealCells(done) {
+  const target = Math.round(done / TOTAL * CELLS);
+  for (let i = 0; i < CELLS; i++) {
+    const el = document.getElementById('mz'+MZ_ORDER[i]);
+    if (el) el.classList.toggle('gone', i < target);
+  }
+}
+
+function startGame() {
+  const cfg = DIFF_CFG[diff];
+  lives = maxLives = cfg.lives;
+  pts = combo = maxCombo = qIdx = correctCount = bonusPts = 0;
+  timerSec = cfg.timerSec;
+  buildMosaic();
+  renderHearts();
+  setProgress(0);
+  showScreen('s-game');
+  renderQ();
+}
+
+function restartGame() {
+  clearInterval(timerInterval);
+  playerName = '';
+  resetStartBtn();
+  document.getElementById('name-inp').value = '';
+  showScreen('s-start');
+  renderStartLB();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+
+function renderHearts() {
+  const el = document.getElementById('lives');
+  el.innerHTML = '';
+  for (let i = 0; i < maxLives; i++) {
+    const h = document.createElement('span');
+    h.className = 'heart' + (i >= lives ? ' lost' : '');
+    h.textContent = '❤️';
+    el.appendChild(h);
+  }
+}
+
+function loseHeart() {
+  if (lives > 0) lives--;
+  renderHearts();
+  const app = document.getElementById('app');
+  app.classList.add('shake');
+  setTimeout(() => app.classList.remove('shake'), 380);
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  const wrap = document.getElementById('timer-wrap');
+  if (!timerSec) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  timerRemain = timerSec;
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timerRemain--;
+    updateTimerUI();
+    if (timerRemain <= 0) { clearInterval(timerInterval); timeUp(); }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const num = document.getElementById('timer-num');
+  const arc = document.getElementById('timer-arc');
+  num.textContent = timerRemain;
+  num.classList.toggle('warn', timerRemain <= 5);
+  const circ = 62.8;
+  arc.style.strokeDashoffset = circ * (1 - timerRemain / timerSec);
+  arc.style.stroke = timerRemain <= 5 ? 'var(--ng-b)' : 'var(--text)';
+}
+
+function stopTimer() { clearInterval(timerInterval); }
+
+function timeUp() {
+  const d = QUESTIONS[qIdx];
+  disableCurrentQ();
+  setFbById(currentFbId(), false, '⏱ 시간 초과! ' + (d.explain || ''));
+  enableNextBtn();
+  handleAnswer(false);
+}
+
+function currentFbId() {
+  return {ox:'ox-fb',blank:'bl-fb',card:'cd-fb',mission:'ms-fb'}[QUESTIONS[qIdx].type];
+}
+
+function disableCurrentQ() {
+  const t = QUESTIONS[qIdx].type;
+  if (t==='ox') {
+    document.getElementById('ox-o').disabled = true;
+    document.getElementById('ox-x').disabled = true;
+  } else if (t==='blank') {
+    document.getElementById('bl-inp').disabled = true;
+    document.getElementById('bl-check').disabled = true;
+    document.getElementById('bl-nxt').style.display = 'inline-block';
+  } else if (t==='mission') {
+    document.getElementById('ms-choices').querySelectorAll('.cbtn').forEach(b => b.disabled = true);
+  }
+}
+
+function enableNextBtn() {
+  const t = QUESTIONS[qIdx].type;
+  if (t==='ox') document.getElementById('ox-nxt').disabled = false;
+  else if (t==='mission') document.getElementById('ms-nxt').disabled = false;
+}
+
+function setProgress(done) {
+  document.getElementById('prog-fill').style.width = (done/TOTAL*100)+'%';
+  document.getElementById('prog-lbl').textContent = done+' / '+TOTAL;
+  document.getElementById('prog-pts').textContent = pts+'pt';
+}
+
+function addCombo() {
+  combo++;
+  if (combo > maxCombo) maxCombo = combo;
+  const badge = document.getElementById('combo-badge');
+  if (combo >= 2) {
+    badge.textContent = combo+'콤보! 🔥';
+    badge.classList.add('on');
+    if (combo >= 3) showComboPop(combo);
+  }
+}
+function resetCombo() {
+  combo = 0;
+  document.getElementById('combo-badge').classList.remove('on');
+}
+function showComboPop(n) {
+  const el = document.getElementById('combo-pop');
+  el.textContent = n+'콤보!! 🔥🔥';
+  el.className = 'show';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'hide', 900);
+}
+
+function calcScore() {
+  const cfg = DIFF_CFG[diff];
+  let bonus = 0;
+  if (timerSec && timerRemain > 0) bonus += Math.floor(timerRemain * cfg.ptTimeBonus);
+  if (combo >= 3) bonus += 5;
+  if (bonus > 0) {
+    bonusPts += bonus;
+    showBonusPop('+'+(cfg.ptBase+bonus)+'pt');
+  }
+  pts += cfg.ptBase + bonus;
+  setProgress(qIdx + 1);
+}
+
+function showBonusPop(txt) {
+  const el = document.getElementById('bonus-pop');
+  el.textContent = txt;
+  el.style.cssText = 'position:fixed;top:36%;left:50%;transform:translateX(-50%);font-size:20px;font-weight:700;color:var(--pu-t);opacity:1;pointer-events:none;z-index:102;white-space:nowrap;transition:none';
+  requestAnimationFrame(() => {
+    el.style.transition = 'opacity .8s ease, top .8s ease';
+    el.style.top = '28%';
+    el.style.opacity = '0';
+  });
+}
+
+function handleAnswer(correct) {
+  if (correct) {
+    correctCount++;
+    addCombo();
+    calcScore();
+    popAnim('✓');
+  } else {
+    resetCombo();
+    loseHeart();
+    popAnim('✗');
+    if (lives <= 0) { setTimeout(() => gameOver(), 700); return false; }
+  }
+  revealCells(qIdx + 1);
+  return true;
+}
+
+function popAnim(emoji) {
+  const el = document.getElementById('anim-pop');
+  el.textContent = emoji;
+  el.className = 'anim-pop show';
+  setTimeout(() => el.className = 'anim-pop hide', 480);
+  setTimeout(() => el.className = 'anim-pop', 820);
+}
+
+function renderQ() {
+  document.querySelectorAll('.qscr').forEach(s => s.classList.remove('on'));
+  const d = QUESTIONS[qIdx];
+  const no = (qIdx+1)+' / '+TOTAL+'번';
+  if      (d.type==='ox')      renderOX(d, no);
+  else if (d.type==='blank')   renderBlank(d, no);
+  else if (d.type==='card')    renderCard(d, no);
+  else if (d.type==='mission') renderMission(d, no);
+}
+
+function next() {
+  qIdx++;
+  if (qIdx >= TOTAL) { showResult(); return; }
+  renderQ();
+}
+
+function renderOX(d, no) {
+  document.getElementById('ox-no').textContent = no;
+  document.getElementById('ox-q').textContent = d.q;
+  document.getElementById('ox-fb').className = 'fb';
+  document.getElementById('ox-nxt').disabled = true;
+  ['ox-o','ox-x'].forEach(id => {
+    document.getElementById(id).className = 'cbtn';
+    document.getElementById(id).disabled = false;
+  });
+  document.getElementById('qscr-ox').classList.add('on');
+  startTimer();
+}
+function ansOX(val) {
+  stopTimer();
+  const d = QUESTIONS[qIdx];
+  const ok = d.ans === val;
+  document.getElementById('ox-o').className = 'cbtn'+(d.ans?' ok':(val?' ng':''));
+  document.getElementById('ox-x').className = 'cbtn'+(!d.ans?' ok':(!val?' ng':''));
+  document.getElementById('ox-o').disabled = true;
+  document.getElementById('ox-x').disabled = true;
+  setFb('ox-fb', ok, d.explain);
+  if (handleAnswer(ok) !== false) document.getElementById('ox-nxt').disabled = false;
+}
+
+function renderBlank(d, no) {
+  document.getElementById('bl-no').textContent = no;
+  document.getElementById('bl-q').textContent = d.q;
+  document.getElementById('bl-fb').className = 'fb';
+  document.getElementById('bl-nxt').style.display = 'none';
+  const inp = document.getElementById('bl-inp');
+  inp.value = ''; inp.disabled = false;
+  document.getElementById('bl-check').disabled = false;
+  document.getElementById('qscr-blank').classList.add('on');
+  setTimeout(() => inp.focus(), 60);
+  startTimer();
+}
+function ansBlank() {
+  stopTimer();
+  const d = QUESTIONS[qIdx];
+  const v = document.getElementById('bl-inp').value.trim();
+  const ok = d.answers.some(a => a === v);
+  document.getElementById('bl-inp').disabled = true;
+  document.getElementById('bl-check').disabled = true;
+  setFb('bl-fb', ok, ok ? `정답! [${d.answers[0]}] 맞아요. ${d.explain}` : `정답은 [${d.answers[0]}] 이에요. ${d.explain}`);
+  document.getElementById('bl-nxt').style.display = 'inline-block';
+  handleAnswer(ok);
+}
+
+function renderCard(d, no) {
+  document.getElementById('cd-no').textContent = no;
+  document.getElementById('cd-fb').className = 'fb';
+  document.getElementById('cd-status').textContent = '짝꿍을 찾아요!';
+  document.getElementById('cd-nxt').style.display = 'none';
+  cardSel = null; cardMatched = 0; cardWrong = 0;
+  cardTotal = d.pairs.length; cardDone = false;
+  let cards = [];
+  d.pairs.forEach((p, i) => { cards.push({pid:i,txt:p[0]}); cards.push({pid:i,txt:p[1]}); });
+  cards.sort(() => Math.random()-.5);
+  const area = document.getElementById('cd-area');
+  area.innerHTML = '';
+  cards.forEach(card => {
+    const el = document.createElement('div');
+    el.className = 'crd'; el.dataset.pid = card.pid; el.textContent = card.txt;
+    el.onclick = () => pickCard(el);
+    area.appendChild(el);
+  });
+  document.getElementById('qscr-card').classList.add('on');
+  startTimer();
+}
+function pickCard(el) {
+  if (el.classList.contains('matched') || el.classList.contains('sel') || cardDone) return;
+  if (cardSel === el) return;
+  el.classList.add('sel');
+  if (!cardSel) { cardSel = el; return; }
+  const a = cardSel, b = el; cardSel = null;
+  if (a.dataset.pid === b.dataset.pid) {
+    a.classList.remove('sel'); b.classList.remove('sel');
+    a.classList.add('matched'); b.classList.add('matched');
+    cardMatched++;
+    if (cardMatched === cardTotal) {
+      cardDone = true; stopTimer();
+      const perfect = cardWrong === 0;
+      document.getElementById('cd-status').textContent = `모두 찾았어요! 틀린 횟수: ${cardWrong}번`;
+      document.getElementById('cd-nxt').style.display = 'inline-block';
+      if (!perfect) setFb('cd-fb', false, `${cardWrong}번 틀렸어요. 다음엔 완벽하게!`);
+      handleAnswer(perfect);
+    }
+  } else {
+    cardWrong++;
+    a.classList.add('bad'); b.classList.add('bad');
+    setTimeout(() => { a.classList.remove('sel','bad'); b.classList.remove('sel','bad'); }, 720);
+  }
+}
+
+function renderMission(d, no) {
+  document.getElementById('ms-no').textContent = no;
+  document.getElementById('ms-story').textContent = d.story;
+  document.getElementById('ms-fb').className = 'fb';
+  document.getElementById('ms-nxt').disabled = true;
+  const area = document.getElementById('ms-choices');
+  area.innerHTML = '';
+  d.choices.forEach((ch, i) => {
+    const b = document.createElement('button');
+    b.className = 'cbtn'; b.textContent = ch;
+    b.onclick = () => {
+      stopTimer();
+      const ok = i === d.correct;
+      area.querySelectorAll('.cbtn').forEach((btn, idx) => {
+        btn.disabled = true;
+        if (idx === d.correct) btn.classList.add('ok');
+        else if (idx === i && !ok) btn.classList.add('ng');
+      });
+      setFb('ms-fb', ok, d.explain);
+      if (handleAnswer(ok) !== false) document.getElementById('ms-nxt').disabled = false;
+    };
+    area.appendChild(b);
+  });
+  document.getElementById('qscr-mission').classList.add('on');
+  startTimer();
+}
+
+function setFb(id, ok, msg) {
+  const el = document.getElementById(id);
+  el.className = 'fb on '+(ok?'ok':'ng');
+  el.textContent = (ok?'✓ ':'✗ ')+msg;
+}
+function setFbById(id, ok, msg) { setFb(id, ok, msg); }
+
+function gameOver() {
+  clearInterval(timerInterval);
+  document.getElementById('go-desc').textContent =
+    `${qIdx+1}번 문제에서 목숨이 모두 소진됐어요.\n획득 점수: ${pts}pt  /  정답: ${correctCount}개`;
+  if (playerName) saveScore(playerName, pts, correctCount, diff, 'F');
+  showScreen('s-gameover');
+}
+
+function showResult() {
+  clearInterval(timerInterval);
+  let rank, cls;
+  if (correctCount===10)      { rank='S'; cls='rank-S'; }
+  else if (correctCount>=9)   { rank='A'; cls='rank-A'; }
+  else if (correctCount>=7)   { rank='B'; cls='rank-B'; }
+  else if (correctCount>=5)   { rank='C'; cls='rank-C'; }
+  else                         { rank='D'; cls='rank-D'; }
+  const headlines = { S:'완벽해요! 소요도서관 명탐정 🏆', A:'훌륭해요! 특보 에이스 기자 🌟', B:'잘했어요! 멋진 특보 기자 👍', C:'조금만 더 연습해봐요 💪', D:'특보를 다시 읽고 도전해봐요 📰' };
+  document.getElementById('res-dog').innerHTML = THIEF_SVG;
+  document.getElementById('res-headline').textContent = headlines[rank];
+  document.getElementById('res-pts').textContent = `최종 점수: ${pts}pt`;
+  const rb = document.getElementById('res-rank');
+  rb.textContent = rank+' 등급'; rb.className = 'rank-badge '+cls;
+  document.getElementById('st-correct').textContent = correctCount+' / 10';
+  document.getElementById('st-combo').textContent = maxCombo+' 콤보';
+  document.getElementById('st-bonus').textContent = '+'+bonusPts+'pt';
+  document.getElementById('res-reveal').textContent = '🔍 정체 공개! '+SUSPECT.reveal;
+  saveAndShowRank(pts, correctCount, diff, rank).then(()=>{});
+  showScreen('s-result');
+}
+
+
 // ★ 특보 호수 — 새 호수 받으면 이 숫자만 바꾸세요! (2, 3, 4...)
 //   호수가 바뀌면 이전 랭킹 기록이 자동으로 사라져요.
-const ISSUE_NUM = 3;
 
 // ── Firebase 설정 ──────────────────────────────────────
 // ★ Firebase 콘솔 → 프로젝트 설정 → 내 앱 → firebaseConfig 복사 ★
 const firebaseConfig = {
-    apiKey: "AIzaSyAGXTluH70xjqOt5SL_vPRD_0-Sno0Ombo",
-    authDomain: "reportergame34.firebaseapp.com",
-    databaseURL: "https://reportergame34-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "reportergame34",
-    storageBucket: "reportergame34.firebasestorage.app",
-    messagingSenderId: "994035949261",
-    appId: "1:994035949261:web:c5099f09e46348eef69384",
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:       "YOUR_DATABASE_URL",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID",
 };
 
 const FB_READY = firebaseConfig.apiKey !== "YOUR_API_KEY";
