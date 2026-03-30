@@ -1028,9 +1028,8 @@ function showResult() {
 
 
 // ═══════════════════════════════════════════════
-//  랭킹 시스템 (localStorage)
-//  ※ 전체 반 공유 랭킹이 필요하다면 아래 Supabase
-//    섹션 주석을 풀고 URL/KEY를 입력하세요.
+//  랭킹 시스템
+//  Firebase DB URL이 설정되면 전체 반 랭킹, 아니면 이 기기 랭킹으로 자동 작동해요.
 // ═══════════════════════════════════════════════
 
 const LB_KEY = `soyodo_lb_v${ISSUE_NUM}`;
@@ -1085,7 +1084,7 @@ async function renderStartLB() {
   const listEl  = document.getElementById('start-lb-list');
   if (!listEl) return;
 
-  if (SUPA_READY) {
+  if (FB_READY) {
     if (titleEl) titleEl.textContent = '🏆 전체 반 랭킹';
     listEl.innerHTML = '<div class="lb-empty" style="color:var(--text3)">불러오는 중...</div>';
     const supaLB = await loadSupaLB();
@@ -1168,33 +1167,30 @@ function renderLBInto(listEl, lb, myIdx) {
 function renderLB(lb, myIdx) {
   const list = document.getElementById('lb-list');
   const title = document.querySelector('.lb-title span');
-  if (title) title.textContent = SUPA_READY ? '🏆 전체 반 랭킹' : '🏆 이 기기 랭킹';
+  if (title) title.textContent = FB_READY ? '🏆 전체 반 랭킹' : '🏆 이 기기 랭킹';
   renderLBInto(list, lb, myIdx);
 }
 
 /* ── 결과에 랭킹 연동 ── */
 async function saveAndShowRank(score, correct, diffKey, rank) {
-  // 항상 localStorage에도 저장 (오프라인 대비)
+  // localStorage에도 항상 저장 (오프라인 대비)
   const localLB = saveScore(playerName, score, correct, diffKey, rank);
 
-  if (SUPA_READY) {
-    // Supabase 저장 & 불러오기
-    await saveScoreToSupabase(playerName, score, correct, diffKey, rank);
-    const supaLB = await loadSupaLB();
-    if (supaLB) {
-      const myIdx = supaLB.findIndex(
-        r => r.name === playerName && r.score === score && r.rank === rank
-      );
-      showMyRankBox(myIdx, supaLB.length, true);
-      renderLB(supaLB, myIdx);
+  if (FB_READY) {
+    // Firebase 저장
+    await fbSaveScore(playerName, score, correct, diffKey, rank);
+    // Firebase에서 전체 랭킹 불러오기
+    const fbLB = await fbLoadLB();
+    if (fbLB) {
+      const myIdx = fbLB.findIndex(r => r.name === playerName);
+      showMyRankBox(myIdx, fbLB.length, true);
+      renderLB(fbLB, myIdx);
       return;
     }
   }
 
-  // Supabase 없으면 localStorage 랭킹
-  const myIdx = localLB.findIndex(
-    r => r.name === playerName && r.score === score && r.rank === rank
-  );
+  // Firebase 없으면 localStorage 랭킹
+  const myIdx = localLB.findIndex(r => r.name === playerName);
   showMyRankBox(myIdx, localLB.length, false);
   renderLB(localLB, myIdx);
 }
@@ -1210,65 +1206,63 @@ function showMyRankBox(myIdx, total, isGlobal) {
     : `${scope} 내 등수: ${pos}위 / ${total}명`;
 }
 
-// ── Supabase 전체 반 랭킹 설정 ──────────────────────────
-// ★ 아래 두 줄에 본인 Supabase 값을 입력하세요 ★
-const SUPA_URL = 'YOUR_SUPABASE_URL';   // 예) https://abcdefgh.supabase.co
-const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ── Firebase Realtime Database 랭킹 설정 ──────────────
+// ★ 아래 한 줄에 본인 Firebase DB URL을 입력하세요 ★
+// Firebase 콘솔 → Realtime Database → 데이터 탭의 URL
+// 예) https://my-project-default-rtdb.asia-southeast1.firebasedatabase.app
+const FB_URL = 'YOUR_FIREBASE_DATABASE_URL';
 
-const SUPA_READY = SUPA_URL !== 'YOUR_SUPABASE_URL';
-const SUPA_HDR = () => ({
-  'apikey': SUPA_KEY,
-  'Authorization': 'Bearer ' + SUPA_KEY,
-  'Content-Type': 'application/json',
-});
+const FB_READY = FB_URL !== 'YOUR_FIREBASE_DATABASE_URL';
 
-async function saveScoreToSupabase(name, score, correct, diffKey, rank) {
-  if (!SUPA_READY) return;
-  try {
-    // 기존 기록 조회
-    const res = await fetch(
-      `${SUPA_URL}/rest/v1/leaderboard?name=eq.${encodeURIComponent(name)}&select=id,score`,
-      { headers: SUPA_HDR() }
-    );
-    const existing = res.ok ? await res.json() : [];
-
-    if (existing.length > 0) {
-      // 더 높은 점수일 때만 업데이트
-      if (score > existing[0].score) {
-        await fetch(`${SUPA_URL}/rest/v1/leaderboard?id=eq.${existing[0].id}`, {
-          method: 'PATCH',
-          headers: { ...SUPA_HDR(), 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ score, correct, diff: diffKey, rank }),
-        });
-      }
-      // 낮은 점수면 아무것도 안 함
-    } else {
-      // 새 기록 삽입
-      await fetch(`${SUPA_URL}/rest/v1/leaderboard`, {
-        method: 'POST',
-        headers: { ...SUPA_HDR(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ name, score, correct, diff: diffKey, rank }),
-      });
-    }
-  } catch(e) { console.warn('Supabase 저장 실패:', e); }
+// 이름을 key로 써서 같은 이름은 자동으로 덮어씌워짐 (중복 불가)
+function fbKey(name) {
+  // Firebase key에 쓸 수 없는 문자 제거
+  return name.replace(/[.#$\[\]/]/g, '_');
 }
 
-async function loadSupaLB() {
-  if (!SUPA_READY) return null;
+function fbPath() {
+  // 호수별로 분리된 경로 사용
+  return `${FB_URL}/leaderboard_v${ISSUE_NUM}`;
+}
+
+async function fbSaveScore(name, score, correct, diffKey, rank) {
+  if (!FB_READY) return;
+  try {
+    const key = fbKey(name);
+    // 기존 기록 확인
+    const res = await fetch(`${fbPath()}/${key}.json`);
+    if (res.ok) {
+      const existing = await res.json();
+      // 기존 점수보다 낮으면 저장 안 함
+      if (existing && existing.score >= score) return;
+    }
+    // 저장 (PUT → 이름 key로 덮어쓰기)
+    await fetch(`${fbPath()}/${key}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, score, correct, diff: diffKey, rank, at: Date.now() }),
+    });
+  } catch(e) { console.warn('Firebase 저장 실패:', e); }
+}
+
+async function fbLoadLB() {
+  if (!FB_READY) return null;
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/leaderboard?select=*&order=score.desc,correct.desc&limit=30`,
-      { headers: SUPA_HDR() }
+      `${fbPath()}.json?orderBy="score"&limitToLast=30`
     );
-    return res.ok ? res.json() : null;
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data) return [];
+    // 객체 → 배열로 변환 후 점수 내림차순 정렬
+    return Object.values(data)
+      .sort((a, b) => b.score - a.score || b.correct - a.correct);
   } catch(e) { return null; }
 }
 
-async function deleteSupaScore(id) {
-  if (!SUPA_READY) return;
-  await fetch(`${SUPA_URL}/rest/v1/leaderboard?id=eq.${id}`, {
-    method: 'DELETE', headers: SUPA_HDR(),
-  });
+async function fbClearAll() {
+  if (!FB_READY) return;
+  await fetch(`${fbPath()}.json`, { method: 'DELETE' });
 }
 
 // URL에 ?admin 또는 #admin 이 있으면 선생님 모드
